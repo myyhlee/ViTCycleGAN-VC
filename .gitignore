@@ -8,6 +8,6 @@ saved_mels
 
 logs
 
-.tar
+*.tar
 
-.wav
+*.wav
