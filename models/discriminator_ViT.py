@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 from torch import nn
 from torch import Tensor
-from PIL import Image
-from torchvision.transforms import Compose, Resize, ToTensor
+# from PIL import Image
+# from torchvision.transforms import Compose, Resize, ToTensor
 from einops import rearrange, reduce, repeat
 from einops.layers.torch import Rearrange, Reduce
 
@@ -33,7 +33,7 @@ class PatchEmbedding(nn.Module):
         x += self.positions
         return x
 
-
+### For HZ dataset
 # class MultiHeadAttention(nn.Module):
 #     def __init__(self, emb_size: int = 768, num_heads: int = 8, dropout: float = 0):
 #         super().__init__()
@@ -96,7 +96,6 @@ class MultiHeadAttention(nn.Module):
         return out
     
 
-
 class ResidualAdd(nn.Module):
     def __init__(self, fn):
         super().__init__()
@@ -109,6 +108,7 @@ class ResidualAdd(nn.Module):
         return x
 
 
+
 class FeedForwardBlock(nn.Sequential):
     def __init__(self, emb_size: int, expansion: int = 4, drop_p: float = 0.):
         super().__init__(
@@ -117,6 +117,7 @@ class FeedForwardBlock(nn.Sequential):
             nn.Dropout(drop_p),
             nn.Linear(expansion * emb_size, emb_size),
         )
+
 
 
 class TransformerEncoderBlock(nn.Sequential):
@@ -142,10 +143,12 @@ class TransformerEncoderBlock(nn.Sequential):
         )
 
 
+
 class TransformerEncoder(nn.Sequential):
     def __init__(self, depth: int = 12, **kwargs):
         super().__init__(*[TransformerEncoderBlock(**kwargs) for _ in range(depth)])
                 
+
 
 
 class ClassificationHead(nn.Sequential):
@@ -156,7 +159,8 @@ class ClassificationHead(nn.Sequential):
             nn.Linear(emb_size, n_classes))
 
 
-class ViT(nn.Sequential):
+
+class Discriminator_ViT(nn.Sequential):
     def __init__(self,     
                 in_channels: int = 1,
                 patch_size: int = 16,

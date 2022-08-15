@@ -7,19 +7,98 @@ import torch.nn as nn
 import torch.optim as optim
 import config
 from tqdm import tqdm
-from torchvision.utils import save_image
-from discriminator_ViT import ViT
-from generator_model import Generator
+# from torchvision.utils import save_image
+from models.discriminator_ViT import Discriminator_ViT
+from models.generator_CNN import Generator_CNN
+from models.discriminator_CNN import Discriminator_CNN
 from torch.utils.tensorboard import SummaryWriter
 import os
 
+## ViT disc
+disc_Y = Discriminator_ViT(in_channels=1).to(config.DEVICE)
+disc_X = Discriminator_ViT(in_channels=1).to(config.DEVICE)
+
+# ### Vanilla CNN disc
+# disc_Y = Discriminator(in_channels=1).to(config.DEVICE)
+# disc_X = Discriminator(in_channels=1).to(config.DEVICE)
 
 
-def train_fn(disc_Y, disc_X, gen_X, gen_Y, loader, opt_disc, opt_gen, l1, mse, d_scaler, g_scaler):
-    Y_reals = 0
-    Y_fakes = 0
+gen_X = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
+gen_Y = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
+
+opt_disc = optim.Adam(
+    list(disc_X.parameters()) + list(disc_Y.parameters()),
+    lr=config.LEARNING_RATE,
+    betas=(0.5, 0.999),
+)
+
+opt_gen = optim.Adam(
+    list(gen_X.parameters()) + list(gen_Y.parameters()),
+    lr=config.LEARNING_RATE,
+    betas=(0.5, 0.999),
+)
+
+L1 = nn.L1Loss()
+mse = nn.MSELoss()
+
+if config.LOAD_MODEL:
+    load_checkpoint(
+        config.CHECKPOINT_GEN_Y, gen_Y, opt_gen, config.LEARNING_RATE,
+    )
+
+    load_checkpoint(
+        config.CHECKPOINT_GEN_X, gen_X, opt_gen, config.LEARNING_RATE,
+    )
+    load_checkpoint(
+        config.CHECKPOINT_CRITIC_Y, disc_Y, opt_disc, config.LEARNING_RATE,
+    )
+    load_checkpoint(
+        config.CHECKPOINT_CRITIC_X, disc_X, opt_disc, config.LEARNING_RATE,
+    )
+
+dataset = MelDataset(
+    root_y="/home/yuholee/develop/data_KR_80/train/B_M_14_t", root_x="/home/yuholee/develop/data_KR_80/train/A_F_02_t"
+)
+val_dataset = MelDataset(
+    root_y="/home/yuholee/develop/data_KR_80/eval/B_M_14_e/", root_x="/home/yuholee/develop/data_KR_80/eval/A_F_02_e/"
+)
+
+val_loader = DataLoader(
+    val_dataset,
+    batch_size=1,
+    shuffle=False,
+    pin_memory=True,
+)
+loader = DataLoader(
+    dataset,
+    batch_size=config.BATCH_SIZE,
+    shuffle=True,
+    num_workers=config.NUM_WORKERS,
+    pin_memory=True
+)
+
+g_scaler = torch.cuda.amp.GradScaler()
+d_scaler = torch.cuda.amp.GradScaler()
+
+
+if config.LOAD_MODEL:
+    load_checkpoint(
+    config.CHECKPOINT_GEN_Y, gen_Y, opt_gen, config.LEARNING_RATE,
+    )
+
+    load_checkpoint(
+        config.CHECKPOINT_GEN_X, gen_X, opt_gen, config.LEARNING_RATE,
+    )
+    load_checkpoint(
+        config.CHECKPOINT_CRITIC_Y, disc_Y, opt_disc, config.LEARNING_RATE,
+    )
+    load_checkpoint(
+        config.CHECKPOINT_CRITIC_X, disc_X, opt_disc, config.LEARNING_RATE,
+    )
+
+
+for epoch in range(config.NUM_EPOCHS):
     loop = tqdm(loader, leave=True)
-
     for idx, (x, y) in enumerate(loop):
         x = x.to(config.DEVICE)
         y = y.to(config.DEVICE)
@@ -28,13 +107,10 @@ def train_fn(disc_Y, disc_X, gen_X, gen_Y, loader, opt_disc, opt_gen, l1, mse, d
         with torch.cuda.amp.autocast():
             fake_y = gen_Y(x)
             D_Y_real = disc_Y(y)
-            print(D_Y_real)
-            print(D_Y_real.shape)
-            print(disc_Y)
             
             D_Y_fake = disc_Y(fake_y.detach())
-            Y_reals += D_Y_real.mean().item()
-            Y_fakes += D_Y_fake.mean().item()
+            # Y_reals += D_Y_real.mean().item()
+            # Y_fakes += D_Y_fake.mean().item()
             D_Y_real_loss = mse(D_Y_real, torch.ones_like(D_Y_real))
             D_Y_fake_loss = mse(D_Y_fake, torch.zeros_like(D_Y_fake))
             D_Y_loss = D_Y_real_loss + D_Y_fake_loss
@@ -65,14 +141,14 @@ def train_fn(disc_Y, disc_X, gen_X, gen_Y, loader, opt_disc, opt_gen, l1, mse, d
             # cycle loss
             cycle_x = gen_X(fake_y)
             cycle_y = gen_Y(fake_x)
-            cycle_x_loss = l1(x, cycle_x)
-            cycle_y_loss = l1(y, cycle_y)
+            cycle_x_loss = L1(x, cycle_x)
+            cycle_y_loss = L1(y, cycle_y)
 
             # identity loss (remove these for efficiency if you set lambda_identity=0)
-            identity_x = gen_X(x)
-            identity_y = gen_Y(y)
-            identity_x_loss = l1(x, identity_x)
-            identity_y_loss = l1(y, identity_y)
+            # identity_x = gen_X(x)
+            # identity_y = gen_Y(y)
+            # identity_x_loss = l1(x, identity_x)
+            # identity_y_loss = l1(y, identity_y)
 
             # total G loss
             G_loss = (
@@ -80,8 +156,8 @@ def train_fn(disc_Y, disc_X, gen_X, gen_Y, loader, opt_disc, opt_gen, l1, mse, d
                 + loss_G_H
                 + cycle_x_loss * config.LAMBDA_CYCLE
                 + cycle_y_loss * config.LAMBDA_CYCLE
-                + identity_y_loss * config.LAMBDA_IDENTITY
-                + identity_x_loss * config.LAMBDA_IDENTITY
+                # + identity_y_loss * config.LAMBDA_IDENTITY
+                # + identity_x_loss * config.LAMBDA_IDENTITY
             )
 
         opt_gen.zero_grad()
@@ -90,93 +166,32 @@ def train_fn(disc_Y, disc_X, gen_X, gen_Y, loader, opt_disc, opt_gen, l1, mse, d
         g_scaler.update()
 
 
-        if idx % 200 == 0:
-            save_pickle_file(variable = fake_x, fileName = os.path.join("saved_mels", f"{idx}_mel_x.pickle"))
-            # save_pickle_file(variable = fake_x *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_x.pickle"))
+                #############################################################
+                #################    for logging            #################
+                #############################################################
 
-            save_pickle_file(variable = fake_y, fileName = os.path.join("saved_mels", f"{idx}_mel_y.pickle"))
-            # save_pickle_file(variable = fake_y *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_y.pickle"))
 
-        loop.set_postfix(D_loss=D_loss.item()/(idx+1), G_loss=G_loss.item()/(idx+1))
-
-    
-    writer_G_Loss = SummaryWriter(f"/home/yuholee/develop/ViTCycleGAN_Mel/logs")
-    writer_D_Loss = SummaryWriter(f"/home/yuholee/develop/ViTCycleGAN_Mel/logs")
-
-    writer_G_Loss.add_scalar("G-Loss", G_loss, idx)
-    writer_D_Loss.add_scalar("D-Loss", D_loss, idx)
-
-def main():
-    disc_Y = ViT(in_channels=1).to(config.DEVICE)
-    # disc_Y = Discriminator(in_channels=3).to(config.DEVICE)
-    disc_X = ViT(in_channels=1).to(config.DEVICE)
-    # disc_X = Discriminator(in_channels=3).to(config.DEVICE)
-    gen_X = Generator(img_channels=1, num_residuals=9).to(config.DEVICE)
-    gen_Y = Generator(img_channels=1, num_residuals=9).to(config.DEVICE)
-    opt_disc = optim.Adam(
-        list(disc_Y.parameters()) + list(disc_X.parameters()),
-        lr=config.LEARNING_RATE,
-        betas=(0.5, 0.999),
+    print(
+        f"Epoch [{epoch}/{config.NUM_EPOCHS}] Batch {idx}/{len(loader)} Loss D: {D_loss: .4f}, loss G: {G_loss: .4f}"
     )
 
-    opt_gen = optim.Adam(
-        list(gen_X.parameters()) + list(gen_Y.parameters()),
-        lr=config.LEARNING_RATE,
-        betas=(0.5, 0.999),
-    )
+    loop.set_postfix(D_loss=D_loss.item()/(idx+1), G_loss=G_loss.item()/(idx+1))
 
-    L1 = nn.L1Loss()
-    mse = nn.MSELoss()
+    save_pickle_file(variable = fake_x, fileName = os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_x.pickle"))
+    # save_pickle_file(variable = fake_x *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_x.pickle"))
 
-    if config.LOAD_MODEL:
-        load_checkpoint(
-            config.CHECKPOINT_GEN_Y, gen_Y, opt_gen, config.LEARNING_RATE,
-        )
-        load_checkpoint(
-            config.CHECKPOINT_GEN_X, gen_X, opt_gen, config.LEARNING_RATE,
-        )
-        load_checkpoint(
-            config.CHECKPOINT_CRITIC_Y, disc_Y, opt_disc, config.LEARNING_RATE,
-        )
-        load_checkpoint(
-            config.CHECKPOINT_CRITIC_X, disc_X, opt_disc, config.LEARNING_RATE,
-        )
+    save_pickle_file(variable = fake_y, fileName = os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_y.pickle"))
+    # save_pickle_file(variable = fake_y *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_y.pickle"))
 
-    dataset = MelDataset(
-        root_y="/home/yuholee/develop/ViTCycleGAN_Mel/data_KR/train_mel/B_M_14_t/B_M_14_t_normalized_full.pickle", root_x="/home/yuholee/develop/ViTCycleGAN_Mel/data_KR/train_mel/A_F_02_t/A_F_02_t_normalized_full.pickle", transform=config.transforms
-    )
-    val_dataset = MelDataset(
-        root_y="/home/yuholee/develop/ViTCycleGAN_Mel/data_KR/eval_mel/B_M_14_e/B_M_14_e_normalized_full.pickle", root_x="/home/yuholee/develop/ViTCycleGAN_Mel/data_KR/eval_mel/A_F_02_e/A_F_02_e_normalized_full.pickle", transform=config.transforms
-    )
-    
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=1,
-        shuffle=False,
-        pin_memory=True,
-    )
-    loader = DataLoader(
-        dataset,
-        batch_size=config.BATCH_SIZE,
-        shuffle=True,
-        num_workers=config.NUM_WORKERS,
-        pin_memory=True
-    )
-    
-    g_scaler = torch.cuda.amp.GradScaler()
-    d_scaler = torch.cuda.amp.GradScaler()
+    writer_G_Loss = SummaryWriter(f"/home/yuholee/develop/ViTCycleGAN/logs")
+    writer_D_Loss = SummaryWriter(f"/home/yuholee/develop/ViTCycleGAN/logs")
+
+    writer_G_Loss.add_scalar("G-Loss", G_loss, epoch)
+    writer_D_Loss.add_scalar("D-Loss", D_loss, epoch)
 
 
-    for epoch in range(config.NUM_EPOCHS):
-        train_fn(disc_Y, disc_X, gen_X, gen_Y, loader, opt_disc, opt_gen, L1, mse, d_scaler, g_scaler)
-
-        if config.SAVE_MODEL:
-            save_checkpoint(gen_Y, opt_gen, filename=config.CHECKPOINT_GEN_Y)
-            save_checkpoint(gen_X, opt_gen, filename=config.CHECKPOINT_GEN_X)
-            save_checkpoint(disc_Y, opt_disc, filename=config.CHECKPOINT_CRITIC_Y)
-            save_checkpoint(disc_X, opt_disc, filename=config.CHECKPOINT_CRITIC_X)
-
-
-
-if __name__ == "__main__":
-    main()
+    if config.SAVE_MODEL:
+        save_checkpoint(gen_Y, opt_gen, filename=config.CHECKPOINT_GEN_Y)
+        save_checkpoint(gen_X, opt_gen, filename=config.CHECKPOINT_GEN_X)
+        save_checkpoint(disc_Y, opt_disc, filename=config.CHECKPOINT_DISC_Y)
+        save_checkpoint(disc_X, opt_disc, filename=config.CHECKPOINT_DISC_X)

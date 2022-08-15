@@ -14,8 +14,6 @@ def load_pickle_file(fileName):
     with open(fileName, 'rb') as f:
         return pickle.load(f)
         
-
-
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     checkpoint = {

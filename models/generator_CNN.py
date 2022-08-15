@@ -26,7 +26,7 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
         return x + self.block(x)
 
-class Generator(nn.Module):
+class Generator_CNN(nn.Module):
     def __init__(self, img_channels, num_features = 80, num_residuals=9):
         super().__init__()
         # self.initial = nn.Sequential(
@@ -66,7 +66,7 @@ def test():
     img_channels = 1
     img_size = 256
     x = torch.randn((1, img_channels, img_size, img_size))
-    gen = Generator(img_channels, 9)
+    gen = Generator_CNN(img_channels, 9)
     print(gen(x).shape)
 
 if __name__ == "__main__":
