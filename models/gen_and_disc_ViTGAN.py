@@ -226,7 +226,7 @@ class Generator(nn.Module):
         num_heads = 6,
         dim_head = None,
         dropout = 0,
-        out_channels = 3
+        out_channels = 1
     ):
         super(Generator, self).__init__()
         self.initialize_size = initialize_size
@@ -260,7 +260,7 @@ class Generator(nn.Module):
 
 class Discriminator(nn.Module):
     def __init__(self,
-        in_channels = 3,
+        in_channels = 1,
         patch_size = 8,
         extend_size = 2,
         dim = 384,
@@ -311,6 +311,8 @@ class Discriminator(nn.Module):
         return logits
 
 
+
+
 def test_both():
     B, dim = 10, 1024
     G = Generator(initialize_size = 8, dropout = 0.1)
@@ -320,3 +322,6 @@ def test_both():
     D_logits = D(fake_img)
     print(D_logits)
     print(f"Max: {torch.max(D_logits)}, Min: {torch.min(D_logits)}")
+        
+    
+test_both()

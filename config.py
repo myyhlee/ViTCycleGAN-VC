@@ -4,8 +4,8 @@ import torch
 import os
 
 DEVICE = "cuda:3" if torch.cuda.is_available() else "cpu"
-TRAIN_DIR = "/home/yuholee/develop/data_KR_80/train"
-VAL_DIR = "/home/yuholee/develop/data_KR_80/eval"
+TRAIN_DIR = "/home/yuholee/develop/data_KR_80_librosa/train"
+VAL_DIR = "/home/yuholee/develop/data_KR_80_librosa/eval"
 BATCH_SIZE = 1
 LEARNING_RATE = 2e-6
 LAMBDA_IDENTITY = 0.0
