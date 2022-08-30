@@ -11,20 +11,26 @@ from tqdm import tqdm
 from models.discriminator_ViT import Discriminator_ViT
 from models.generator_CNN import Generator_CNN
 from models.discriminator_CNN import Discriminator_CNN
+from models.models_asarigun_TransGAN import Generator_AS, Discriminator_AS
+# from models.generator_MaskCycleGAN import Generator_MaskCylceGAN
 from torch.utils.tensorboard import SummaryWriter
 import os
+import numpy as np
 
-## ViT disc
-disc_Y = Discriminator_ViT(in_channels=1).to(config.DEVICE)
-disc_X = Discriminator_ViT(in_channels=1).to(config.DEVICE)
+### ViT disc
+# disc_Y = Discriminator_ViT(in_channels=1).to(config.DEVICE)
+# disc_X = Discriminator_ViT(in_channels=1).to(config.DEVICE)
 
 # ### Vanilla CNN disc
-# disc_Y = Discriminator(in_channels=1).to(config.DEVICE)
-# disc_X = Discriminator(in_channels=1).to(config.DEVICE)
+disc_Y = Discriminator_AS().to(config.DEVICE)
+disc_X = Discriminator_AS().to(config.DEVICE)
 
+# gen_X = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
+# gen_Y = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
 
-gen_X = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
-gen_Y = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
+gen_X = Generator_AS().to(config.DEVICE)
+gen_Y = Generator_AS().to(config.DEVICE)
+
 
 opt_disc = optim.Adam(
     list(disc_X.parameters()) + list(disc_Y.parameters()),
@@ -50,17 +56,17 @@ if config.LOAD_MODEL:
         config.CHECKPOINT_GEN_X, gen_X, opt_gen, config.LEARNING_RATE,
     )
     load_checkpoint(
-        config.CHECKPOINT_CRITIC_Y, disc_Y, opt_disc, config.LEARNING_RATE,
+        config.CHECKPOINT_DISC_Y, disc_Y, opt_disc, config.LEARNING_RATE,
     )
     load_checkpoint(
-        config.CHECKPOINT_CRITIC_X, disc_X, opt_disc, config.LEARNING_RATE,
+        config.CHECKPOINT_DISC_X, disc_X, opt_disc, config.LEARNING_RATE,
     )
 
 dataset = MelDataset(
-    root_y="/home/yuholee/develop/data_KR_80/train/B_M_14_t", root_x="/home/yuholee/develop/data_KR_80/train/A_F_02_t"
+    root_y="/home/yuholee/develop/data_KR_80_librosa/train/B_M_14_t", root_x="/home/yuholee/develop/data_KR_80_librosa/train/A_F_02_t"
 )
 val_dataset = MelDataset(
-    root_y="/home/yuholee/develop/data_KR_80/eval/B_M_14_e/", root_x="/home/yuholee/develop/data_KR_80/eval/A_F_02_e/"
+    root_y="/home/yuholee/develop/data_KR_80_librosa/eval/B_M_14_e/", root_x="/home/yuholee/develop/data_KR_80_librosa/eval/A_F_02_e/"
 )
 
 val_loader = DataLoader(
@@ -80,7 +86,6 @@ loader = DataLoader(
 g_scaler = torch.cuda.amp.GradScaler()
 d_scaler = torch.cuda.amp.GradScaler()
 
-
 if config.LOAD_MODEL:
     load_checkpoint(
     config.CHECKPOINT_GEN_Y, gen_Y, opt_gen, config.LEARNING_RATE,
@@ -90,12 +95,11 @@ if config.LOAD_MODEL:
         config.CHECKPOINT_GEN_X, gen_X, opt_gen, config.LEARNING_RATE,
     )
     load_checkpoint(
-        config.CHECKPOINT_CRITIC_Y, disc_Y, opt_disc, config.LEARNING_RATE,
+        config.CHECKPOINT_DISC_Y, disc_Y, opt_disc, config.LEARNING_RATE,
     )
     load_checkpoint(
-        config.CHECKPOINT_CRITIC_X, disc_X, opt_disc, config.LEARNING_RATE,
+        config.CHECKPOINT_DISC_X, disc_X, opt_disc, config.LEARNING_RATE,
     )
-
 
 for epoch in range(config.NUM_EPOCHS):
     loop = tqdm(loader, leave=True)
@@ -107,7 +111,6 @@ for epoch in range(config.NUM_EPOCHS):
         with torch.cuda.amp.autocast():
             fake_y = gen_Y(x)
             D_Y_real = disc_Y(y)
-            
             D_Y_fake = disc_Y(fake_y.detach())
             # Y_reals += D_Y_real.mean().item()
             # Y_fakes += D_Y_fake.mean().item()
@@ -176,12 +179,17 @@ for epoch in range(config.NUM_EPOCHS):
     )
 
     loop.set_postfix(D_loss=D_loss.item()/(idx+1), G_loss=G_loss.item()/(idx+1))
-
-    save_pickle_file(variable = fake_x, fileName = os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_x.pickle"))
-    # save_pickle_file(variable = fake_x *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_x.pickle"))
-
-    save_pickle_file(variable = fake_y, fileName = os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_y.pickle"))
-    # save_pickle_file(variable = fake_y *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_y.pickle"))
+    
+    fake_x = fake_x.cpu().detach().numpy()
+    fake_y = fake_y.cpu().detach().numpy()
+    
+    np.save(os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_x"), fake_x)
+    np.save(os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_y"), fake_y)
+    
+    # save_pickle_file(variable = fake_x, fileName = os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_x.pickle"))
+    # # save_pickle_file(variable = fake_x *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_x.pickle"))    
+    # save_pickle_file(variable = fake_y, fileName = os.path.join("/home/yuholee/develop/ViTCycleGAN/saved_mels", f"{epoch}_mel_y.pickle"))
+    # # save_pickle_file(variable = fake_y *0/5 + 0.5, fileName = os.path.join("saved_mels", f"{idx}_mel_y.pickle"))
 
     writer_G_Loss = SummaryWriter(f"/home/yuholee/develop/ViTCycleGAN/logs")
     writer_D_Loss = SummaryWriter(f"/home/yuholee/develop/ViTCycleGAN/logs")

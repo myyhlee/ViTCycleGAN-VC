@@ -63,7 +63,7 @@ class Generator_CNN(nn.Module):
         return torch.tanh(self.last(x))
 
 def test():
-    img_channels = 1
+    img_channels = 3
     img_size = 256
     x = torch.randn((1, img_channels, img_size, img_size))
     gen = Generator_CNN(img_channels, 9)

@@ -1,12 +1,10 @@
 import torch
-# import albumentations as A
-# from albumentations.pytorch import ToTensorV2
 import os
 
 DEVICE = "cuda:3" if torch.cuda.is_available() else "cpu"
 TRAIN_DIR = "/home/yuholee/develop/data_KR_80_librosa/train"
 VAL_DIR = "/home/yuholee/develop/data_KR_80_librosa/eval"
-BATCH_SIZE = 1
+BATCH_SIZE = 16
 LEARNING_RATE = 2e-6
 LAMBDA_IDENTITY = 0.0
 LAMBDA_CYCLE = 10
