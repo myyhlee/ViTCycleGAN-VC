@@ -11,25 +11,25 @@ from tqdm import tqdm
 from models.discriminator_ViT import Discriminator_ViT
 from models.generator_CNN import Generator_CNN
 from models.discriminator_CNN import Discriminator_CNN
-from models.models_asarigun_TransGAN import Generator_AS, Discriminator_AS
+# from models.models_asarigun_TransGAN import Generator_AS, Discriminator_AS
 # from models.generator_MaskCycleGAN import Generator_MaskCylceGAN
 from torch.utils.tensorboard import SummaryWriter
 import os
 import numpy as np
 
-### ViT disc
-# disc_Y = Discriminator_ViT(in_channels=1).to(config.DEVICE)
-# disc_X = Discriminator_ViT(in_channels=1).to(config.DEVICE)
+## ViT disc
+disc_Y = Discriminator_ViT(in_channels=1).to(config.DEVICE)
+disc_X = Discriminator_ViT(in_channels=1).to(config.DEVICE)
 
-# ### Vanilla CNN disc
-disc_Y = Discriminator_AS().to(config.DEVICE)
-disc_X = Discriminator_AS().to(config.DEVICE)
+# # ### Vanilla CNN disc
+# disc_Y = Discriminator_AS().to(config.DEVICE)
+# disc_X = Discriminator_AS().to(config.DEVICE)
 
-# gen_X = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
-# gen_Y = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
+gen_X = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
+gen_Y = Generator_CNN(img_channels=1, num_residuals=9).to(config.DEVICE)
 
-gen_X = Generator_AS().to(config.DEVICE)
-gen_Y = Generator_AS().to(config.DEVICE)
+# gen_X = Generator_AS().to(config.DEVICE)
+# gen_Y = Generator_AS().to(config.DEVICE)
 
 
 opt_disc = optim.Adam(
